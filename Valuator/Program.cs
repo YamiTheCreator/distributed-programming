@@ -8,7 +8,8 @@ public class Program
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-        ConnectionMultiplexer redis = ConnectionMultiplexer.Connect("localhost:6379");
+        string? redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+        ConnectionMultiplexer redis = ConnectionMultiplexer.Connect(redisConnection);
         builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
 
         // Add services to the container.
