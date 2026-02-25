@@ -19,7 +19,4 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-# Изменяем строку подключения к Redis на имя сервиса в Docker
-ENV ConnectionStrings__Redis="redis:6379"
-
 ENTRYPOINT ["dotnet", "Valuator.dll"]
