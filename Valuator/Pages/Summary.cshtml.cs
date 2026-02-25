@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
 namespace Valuator.Pages;
@@ -16,13 +11,37 @@ public class SummaryModel(ILogger<SummaryModel> logger, IConnectionMultiplexer r
 
     public async Task<IActionResult> OnGet(string id)
     {
-        logger.LogDebug(id);
+        if (string.IsNullOrEmpty(id))
+        {
+            logger.LogWarning("Попытка доступа к Summary без Id");
+            return RedirectToPage("/Error");
+        }
 
-        IDatabase db = redis.GetDatabase();
+        try
+        {
+            logger.LogDebug("Запрос данных для ID: {Id}", id);
 
-        Rank = (double)await db.StringGetAsync("RANK-" + id);
-        Similarity = (double)await db.StringGetAsync("SIMILARITY-" + id);
+            IDatabase db = redis.GetDatabase();
 
-        return Page();
+            RedisValue rankValue = await db.StringGetAsync("RANK-" + id);
+            RedisValue similarityValue = await db.StringGetAsync("SIMILARITY-" + id);
+
+            if (rankValue.IsNullOrEmpty || similarityValue.IsNullOrEmpty)
+            {
+                logger.LogWarning("Данные не найдены в Redis для ID: {Id}", id);
+                return RedirectToPage("/Error");
+            }
+
+            Rank = (double)rankValue;
+            Similarity = (double)similarityValue;
+
+            return Page();
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Критическая ошибка при загрузке Summary для ID: {Id}", id);
+
+            throw;
+        }
     }
 }

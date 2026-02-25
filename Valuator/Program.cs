@@ -9,7 +9,7 @@ public class Program
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-        string? redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+        string redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
         ConnectionMultiplexer redis = ConnectionMultiplexer.Connect(redisConnection);
         builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
 
