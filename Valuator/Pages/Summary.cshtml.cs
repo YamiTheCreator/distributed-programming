@@ -5,24 +5,24 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 namespace Valuator.Pages;
-public class SummaryModel : PageModel
+
+public class SummaryModel(ILogger<SummaryModel> logger, IConnectionMultiplexer redis) : PageModel
 {
-    private readonly ILogger<SummaryModel> _logger;
-
-    public SummaryModel(ILogger<SummaryModel> logger)
-    {
-        _logger = logger;
-    }
-
     public double Rank { get; set; }
     public double Similarity { get; set; }
 
-    public void OnGet(string id)
+    public async Task<IActionResult> OnGet(string id)
     {
-        _logger.LogDebug(id);
+        logger.LogDebug(id);
 
-        // TODO: (pa1) проинициализировать свойства Rank и Similarity значениями из БД (Redis)
+        IDatabase db = redis.GetDatabase();
+
+        Rank = (double)await db.StringGetAsync("RANK-" + id);
+        Similarity = (double)await db.StringGetAsync("SIMILARITY-" + id);
+
+        return Page();
     }
 }

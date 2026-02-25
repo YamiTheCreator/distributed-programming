@@ -1,37 +1,55 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using StackExchange.Redis;
 
 namespace Valuator.Pages;
 
-public class IndexModel : PageModel
+public class IndexModel(ILogger<IndexModel> logger, IConnectionMultiplexer redis) : PageModel
 {
-    private readonly ILogger<IndexModel> _logger;
-
-    public IndexModel(ILogger<IndexModel> logger)
-    {
-        _logger = logger;
-    }
-
     public void OnGet()
     {
-
     }
 
-    public IActionResult OnPost(string text)
+    public async Task<IActionResult> OnPost(string text)
     {
-        _logger.LogDebug(text);
+        logger.LogDebug(text);
 
         string id = Guid.NewGuid().ToString();
+        IDatabase db = redis.GetDatabase();
 
         string textKey = "TEXT-" + id;
-        // TODO: (pa1) сохранить в БД (Redis) text по ключу textKey
+        await db.StringSetAsync(textKey, text);
 
         string rankKey = "RANK-" + id;
-        // TODO: (pa1) посчитать rank и сохранить в БД (Redis) по ключу rankKey
+        double rank = CalculateRank(text);
+        await db.StringSetAsync(rankKey, rank);
 
         string similarityKey = "SIMILARITY-" + id;
-        // TODO: (pa1) посчитать similarity и сохранить в БД (Redis) по ключу similarityKey
+        string textsSetKey = "TEXT_SET";
+        int similarity;
+
+        if (await db.SetContainsAsync(textsSetKey, text))
+        {
+            similarity = 1;
+        }
+        else
+        {
+            await db.SetAddAsync(textsSetKey, text);
+            similarity = 0;
+        }
+
+        db.StringSet(similarityKey, similarity);
 
         return Redirect($"summary?id={id}");
+    }
+
+    private double CalculateRank(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return 0;
+
+        int alphabeticCount = text.Count(char.IsLetter);
+
+        double nonAlphabeticCount = text.Length - alphabeticCount;
+        return nonAlphabeticCount / text.Length;
     }
 }
