@@ -13,7 +13,7 @@ services:
       dockerfile: .docker/Dockerfile
     container_name: valuator-app-1
     environment:
-      - ASPNETCORE_URLS=http://+:5001
+      - ASPNETCORE_URLS=http://0.0.0.0:5001
       - ConnectionStrings__Redis=redis:6379
     ports:
       - "5001:5001"
@@ -28,7 +28,7 @@ services:
       dockerfile: .docker/Dockerfile
     container_name: valuator-app-2
     environment:
-      - ASPNETCORE_URLS=http://+:5002
+      - ASPNETCORE_URLS=http://0.0.0.0:5002
       - ConnectionStrings__Redis=redis:6379
     ports:
       - "5002:5002"
