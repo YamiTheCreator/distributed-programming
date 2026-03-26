@@ -1,17 +1,28 @@
 #!/bin/bash
 
+echo "Запуск системы Valuator..."
+
 # Переходим в директорию с docker-compose
-# dirname "$0" - директория самого скрипта, без этого путь будет читаться от места запуска
-# exit 1 завершает скрипт если не удалось найти папку
 cd "$(dirname "$0")/../.docker" || exit 1
 
 # Останавливаем старые контейнеры если они есть
-# 2>/dev/null - перенаправляем поток вывода в stderr чтобы заглушить возможные ошибки
-docker-compose down 2>/dev/null
+echo "Остановка старых контейнеров..."
+docker-compose down
 
-# Собираем и запускаем контейнеры
-docker-compose up --build -d
+# Собираем и запускаем все сервисы
+echo "Сборка и запуск сервисов..."
+docker-compose up -d --build
 
-# Проверяем статус
-sleep 5
+echo "Ожидание готовности сервисов..."
+sleep 15
+
+echo "Проверка статуса сервисов..."
 docker-compose ps
+
+echo ""
+echo "Система запущена!"
+echo "Веб-приложение доступно по адресу: http://localhost:8080"
+echo "RabbitMQ Management UI доступен по адресу: http://localhost:15672 (guest/guest)"
+echo ""
+echo "Для просмотра логов выполните: docker-compose logs -f"
+echo "Для остановки системы выполните: ./scripts/stop.sh"

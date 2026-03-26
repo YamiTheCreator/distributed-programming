@@ -1,13 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using StackExchange.Redis;
+using Valuator.DTO.Requests;
+using Valuator.DTO.Responses;
+using Valuator.Interfaces.Services;
 
 namespace Valuator.Pages;
 
-public class SummaryModel(ILogger<SummaryModel> logger, IConnectionMultiplexer redis) : PageModel
+public class SummaryModel(ILogger<SummaryModel> logger, IValuatorService valuatorService) : PageModel
 {
-    public double Rank { get; set; }
-    public double Similarity { get; set; }
+    public TextAnalysisResponse? AnalysisResult { get; set; }
 
     public async Task<IActionResult> OnGet(string id)
     {
@@ -19,28 +20,22 @@ public class SummaryModel(ILogger<SummaryModel> logger, IConnectionMultiplexer r
 
         try
         {
-            logger.LogDebug("Запрос данных для ID: {Id}", id);
-
-            IDatabase db = redis.GetDatabase();
-
-            RedisValue rankValue = await db.StringGetAsync("RANK-" + id);
-            RedisValue similarityValue = await db.StringGetAsync("SIMILARITY-" + id);
-
-            if (rankValue.IsNullOrEmpty || similarityValue.IsNullOrEmpty)
+            GetAnalysisRequest request = new() { Id = id };
+            TextAnalysisResponse response = await valuatorService.GetAnalysisResultAsync(request);
+            
+            if (!response.Success)
             {
-                logger.LogWarning("Данные не найдены в Redis для ID: {Id}", id);
+                logger.LogWarning("Данные не найдены для ID: {Id}, ошибка: {Error}", id, response.ErrorMessage);
                 return RedirectToPage("/Error");
             }
 
-            Rank = (double)rankValue;
-            Similarity = (double)similarityValue;
-
+            AnalysisResult = response;
+            
             return Page();
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            logger.LogError(e, "Критическая ошибка при загрузке Summary для ID: {Id}", id);
-
+            logger.LogError(ex, "Критическая ошибка при загрузке Summary для ID: {Id}", id);
             throw;
         }
     }

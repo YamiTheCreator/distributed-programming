@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using StackExchange.Redis;
+using Valuator.DTO.Requests;
+using Valuator.DTO.Responses;
+using Valuator.Interfaces.Services;
 
 namespace Valuator.Pages;
 
-public class IndexModel(ILogger<IndexModel> logger, IConnectionMultiplexer redis) : PageModel
+public class IndexModel(ILogger<IndexModel> logger, IValuatorService valuatorService) : PageModel
 {
     public void OnGet()
     {
@@ -20,57 +22,24 @@ public class IndexModel(ILogger<IndexModel> logger, IConnectionMultiplexer redis
 
         try
         {
-            logger.LogDebug("Обработка текста, длина: {Length}", text.Length);
-
-            string id = Guid.NewGuid().ToString();
-            IDatabase db = redis.GetDatabase();
-
-            string textKey = "TEXT-" + id;
-            await db.StringSetAsync(textKey, text);
-
-            string rankKey = "RANK-" + id;
-            double rank = CalculateRank(text);
-            await db.StringSetAsync(rankKey, rank);
-
-            string similarityKey = "SIMILARITY-" + id;
-            const string textsSetKey = "TEXT_SET";
-            int similarity;
-
-            if (await db.SetContainsAsync(textsSetKey, text))
+            ProcessTextRequest request = new()
             {
-                similarity = 1;
-            }
-            else
+                Text = text
+            };
+            ProcessTextResponse response = await valuatorService.ProcessTextAsync(request);
+
+            if (!response.Success)
             {
-                await db.SetAddAsync(textsSetKey, text);
-                similarity = 0;
+                logger.LogWarning("Ошибка обработки текста: {Error}", response.ErrorMessage);
+                return Page();
             }
 
-            await db.StringSetAsync(similarityKey, similarity);
-
-            logger.LogInformation("Успешно обработан текст с ID: {Id}", id);
-
-            return Redirect($"summary?id={id}");
-        }
-        catch (RedisConnectionException ex)
-        {
-            logger.LogError(ex, "Ошибка подключения к Redis при обработке текста");
-            return Page();
+            return Redirect($"summary?id={response.Id}");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Неожиданная ошибка при обработке текста");
             throw;
         }
-    }
-
-    private static double CalculateRank(string text)
-    {
-        if (string.IsNullOrEmpty(text)) return 0;
-
-        int alphabeticCount = text.Count(char.IsLetter);
-        double nonAlphabeticCount = text.Length - alphabeticCount;
-
-        return text.Length > 0 ? nonAlphabeticCount / text.Length : 0;
     }
 }

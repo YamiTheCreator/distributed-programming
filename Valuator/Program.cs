@@ -1,42 +1,23 @@
-using Microsoft.AspNetCore.DataProtection;
-using StackExchange.Redis;
+using Valuator.Extensions;
 
-namespace Valuator;
+WebApplicationBuilder builder = WebApplication.CreateBuilder( args );
 
-public class Program
+builder.Services.AddValuator( builder.Configuration );
+
+WebApplication app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if ( !app.Environment.IsDevelopment() )
 {
-    public static void Main(string[] args)
-    {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-
-        string redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
-        ConnectionMultiplexer redis = ConnectionMultiplexer.Connect(redisConnection);
-        builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
-
-        // Настройка Data Protection для работы в кластере
-        builder.Services.AddDataProtection()
-            .PersistKeysToStackExchangeRedis(redis, "DataProtection-Keys")
-            .SetApplicationName("Valuator");
-
-        // Add services to the container.
-        builder.Services.AddRazorPages();
-
-        WebApplication app = builder.Build();
-
-        // Configure the HTTP request pipeline.
-        if (!app.Environment.IsDevelopment())
-        {
-            app.UseExceptionHandler("/Error");
-        }
-
-        app.UseStaticFiles();
-
-        app.UseRouting();
-
-        app.UseAuthorization();
-
-        app.MapRazorPages();
-
-        app.Run();
-    }
+    app.UseExceptionHandler("/Error");
 }
+
+app.UseStaticFiles();
+
+app.UseRouting();
+
+app.UseAuthorization();
+
+app.MapRazorPages();
+
+app.Run();

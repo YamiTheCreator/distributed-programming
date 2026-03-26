@@ -1,9 +1,23 @@
+name: valuator
+
 services:
   redis:
     image: redis:alpine
-    container_name: valuator-redis
+    container_name: redis
     ports:
       - "6379:6379"
+    networks:
+      - valuator-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
     networks:
       - valuator-network
 
@@ -15,12 +29,17 @@ services:
     environment:
       - ASPNETCORE_URLS=http://0.0.0.0:5001
       - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RabbitMQ=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
     ports:
       - "5001:5001"
     depends_on:
       - redis
+      - rabbitmq
     networks:
       - valuator-network
+    restart: unless-stopped
 
   valuator-2:
     build:
@@ -30,26 +49,63 @@ services:
     environment:
       - ASPNETCORE_URLS=http://0.0.0.0:5002
       - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RabbitMQ=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
     ports:
       - "5002:5002"
     depends_on:
       - redis
+      - rabbitmq
     networks:
       - valuator-network
+    restart: unless-stopped
+
+  rankcalculator-1:
+    build:
+      context: ..
+      dockerfile: .docker/RankCalculator.Dockerfile
+    container_name: rank-calculator-1
+    environment:
+      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RabbitMQ=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+    depends_on:
+      - redis
+      - rabbitmq
+    networks:
+      - valuator-network
+    restart: unless-stopped
+
+  rankcalculator-2:
+    build:
+      context: ..
+      dockerfile: .docker/RankCalculator.Dockerfile
+    container_name: rank-calculator-2
+    environment:
+      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RabbitMQ=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+    depends_on:
+      - redis
+      - rabbitmq
+    networks:
+      - valuator-network
+    restart: unless-stopped
 
   nginx:
     image: nginx:alpine
-    container_name: valuator-nginx
+    container_name: nginx
     ports:
       - "8080:8080"
     volumes:
       - ../nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      valuator-1:
-        condition: service_started
-      valuator-2:
-        condition: service_started
-    restart: on-failure
+      - valuator-1
+      - valuator-2
+    restart: unless-stopped
     networks:
       - valuator-network
 
