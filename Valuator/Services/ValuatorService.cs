@@ -1,7 +1,8 @@
-using Contracts;
+using ValuatorLib.Contracts;
+using ValuatorLib.Interfaces;
+using MassTransit;
 using Valuator.DTO.Requests;
 using Valuator.DTO.Responses;
-using Valuator.Interfaces.Repositories;
 using Valuator.Interfaces.Services;
 
 namespace Valuator.Services;
@@ -9,6 +10,7 @@ namespace Valuator.Services;
 public class ValuatorService(
     IValuatorRepository repository,
     IRankCalculationService rankCalculationService,
+    IPublishEndpoint publishEndpoint,
     ILogger<ValuatorService> logger) : IValuatorService
 {
     public async Task<ProcessTextResponse> ProcessTextAsync(ProcessTextRequest request)
@@ -44,6 +46,13 @@ public class ValuatorService(
             }
 
             await repository.SaveSimilarityAsync(id, similarity);
+            
+            // публикация события
+            await publishEndpoint.Publish(new SimilarityCalculatedEvent
+            {
+                Id = id,
+                Similarity = similarity
+            });
 
             logger.LogInformation("Успешно обработан текст с ID: {Id}, задание отправлено в очередь", id);
 

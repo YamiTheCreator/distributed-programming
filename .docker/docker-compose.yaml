@@ -95,6 +95,36 @@ services:
       - valuator-network
     restart: unless-stopped
 
+  eventslogger-1:
+    build:
+      context: ..
+      dockerfile: .docker/EventsLogger.Dockerfile
+    container_name: events-logger-1
+    environment:
+      - ConnectionStrings__RabbitMQ=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+    depends_on:
+      - rabbitmq
+    networks:
+      - valuator-network
+    restart: unless-stopped
+
+  eventslogger-2:
+    build:
+      context: ..
+      dockerfile: .docker/EventsLogger.Dockerfile
+    container_name: events-logger-2
+    environment:
+      - ConnectionStrings__RabbitMQ=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+    depends_on:
+      - rabbitmq
+    networks:
+      - valuator-network
+    restart: unless-stopped
+
   nginx:
     image: nginx:alpine
     container_name: nginx

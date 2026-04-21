@@ -1,9 +1,9 @@
 using MassTransit;
 using Microsoft.AspNetCore.DataProtection;
 using StackExchange.Redis;
-using Valuator.Interfaces.Repositories;
+using ValuatorLib.Interfaces;
+using ValuatorLib.Repositories;
 using Valuator.Interfaces.Services;
-using Valuator.Repositories;
 using Valuator.Services;
 
 namespace Valuator.Extensions;

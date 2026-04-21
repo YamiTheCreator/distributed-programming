@@ -5,11 +5,13 @@ EXPOSE 8080
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 
-# Копируем файл проекта и восстанавливаем зависимости
+# Копируем файлы проектов и восстанавливаем зависимости
+COPY ["ValuatorLib/ValuatorLib.csproj", "ValuatorLib/"]
 COPY ["Valuator/Valuator.csproj", "Valuator/"]
 RUN dotnet restore "Valuator/Valuator.csproj"
 
 # Копируем остальные файлы и собираем приложение
+COPY ValuatorLib/ ValuatorLib/
 COPY Valuator/ Valuator/
 WORKDIR "/src/Valuator"
 RUN dotnet build "Valuator.csproj" -c Release -o /app/build

@@ -2,10 +2,10 @@ using MassTransit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RankCalculator.Consumers;
-using RankCalculator.Interfaces.Repositories;
 using RankCalculator.Interfaces.Services;
-using RankCalculator.Repositories;
 using RankCalculator.Services;
+using ValuatorLib.Interfaces;
+using ValuatorLib.Repositories;
 using StackExchange.Redis;
 
 namespace RankCalculator.Extensions;
@@ -20,7 +20,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConnectionMultiplexer>(redis);
 
         // Регистрация репозитория и сервиса
-        services.AddScoped<IRankRepository, RankRepository>();
+        services.AddScoped<IValuatorRepository, ValuatorRepository>();
         services.AddScoped<IRankCalculatorService, RankCalculatorService>();
 
         // Настройка MassTransit

@@ -1,4 +1,4 @@
-using Contracts;
+using ValuatorLib.Contracts;
 
 namespace Valuator.Interfaces.Services;
 

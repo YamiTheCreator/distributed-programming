@@ -1,4 +1,4 @@
-using Contracts;
+using ValuatorLib.Contracts;
 using MassTransit;
 using Valuator.Interfaces.Services;
 

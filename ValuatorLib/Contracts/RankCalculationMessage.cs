@@ -1,4 +1,4 @@
-namespace Contracts;
+namespace ValuatorLib.Contracts;
 
 public record RankCalculationMessage
 {
