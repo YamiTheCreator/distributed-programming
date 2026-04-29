@@ -2,27 +2,47 @@ using MassTransit;
 using Microsoft.AspNetCore.DataProtection;
 using StackExchange.Redis;
 using ValuatorLib.Interfaces;
-using ValuatorLib.Repositories;
-using Valuator.Interfaces.Services;
+using ValuatorLib.Models;
 using Valuator.Services;
+using ValuatorLib.Repositories;
+using ValuatorLib.Services;
 
 namespace Valuator.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static void AddValuator(this IServiceCollection services, IConfiguration configuration)
+    public static void AddValuatorApi(this IServiceCollection services, IConfiguration configuration)
     {
-        // Регистрация сервисов
+        // Core services
         services.AddScoped<IRankCalculationService, RankCalculationService>();
-        services.AddScoped<IValuatorRepository, ValuatorRepository>();
         services.AddScoped<IValuatorService, ValuatorService>();
 
-        // Настройка Redis
-        string redisConnection = configuration.GetConnectionString("Redis") ?? "localhost:6379";
-        ConnectionMultiplexer redis = ConnectionMultiplexer.Connect(redisConnection);
-        services.AddSingleton<IConnectionMultiplexer>(redis);
+        // Main Redis (для Shard Map)
+        string mainRedisConnection = configuration.GetConnectionString("Redis") ?? "localhost:6379";
+        ConnectionMultiplexer mainRedis = ConnectionMultiplexer.Connect(mainRedisConnection);
+        services.AddSingleton<IConnectionMultiplexer>(mainRedis);
 
-        // Настройка MassTransit
+        // Shard Map Manager
+        services.AddScoped<IShardMapManager, ShardMapManager>();
+
+        // Sharded Redis connections
+        Dictionary<Region, IConnectionMultiplexer> shardedRedis = new();
+        
+        string redisRu = configuration.GetConnectionString("RedisRU") ?? "localhost:6380";
+        shardedRedis[Region.RU] = ConnectionMultiplexer.Connect(redisRu);
+        
+        string redisEu = configuration.GetConnectionString("RedisEU") ?? "localhost:6381";
+        shardedRedis[Region.EU] = ConnectionMultiplexer.Connect(redisEu);
+        
+        string redisAsia = configuration.GetConnectionString("RedisASIA") ?? "localhost:6382";
+        shardedRedis[Region.ASIA] = ConnectionMultiplexer.Connect(redisAsia);
+
+        services.AddSingleton(shardedRedis);
+
+        // Sharded Repository
+        services.AddScoped<IValuatorRepository, ShardedValuatorRepository>();
+
+        // MassTransit configuration
         services.AddMassTransit(x =>
         {
             x.UsingRabbitMq((context, cfg) =>
@@ -37,11 +57,16 @@ public static class ServiceCollectionExtensions
             });
         });
 
-        // Настройка Data Protection для работы в кластере
+        // Data Protection for clustering
         services.AddDataProtection()
-            .PersistKeysToStackExchangeRedis(redis, "DataProtection-Keys");
+            .PersistKeysToStackExchangeRedis(mainRedis, "DataProtection-Keys");
 
-        // Add services to the container.
-        services.AddRazorPages();
+        // Modern API services
+        services.AddOpenApi();
+        services.AddProblemDetails();
+        
+        // Health checks
+        services.AddHealthChecks()
+            .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy());
     }
 }

@@ -1,6 +1,6 @@
 using ValuatorLib.Contracts;
+using ValuatorLib.Interfaces;
 using MassTransit;
-using Valuator.Interfaces.Services;
 
 namespace Valuator.Services;
 

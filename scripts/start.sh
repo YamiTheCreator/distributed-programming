@@ -1,33 +1,32 @@
 #!/bin/bash
 
-echo "Запуск системы Valuator..."
+echo "🚀 Запуск системы Valuator..."
 
-# Переходим в директорию с docker-compose
-cd "$(dirname "$0")/../.docker" || exit 1
+# Переходим в корневую директорию проекта
+cd "$(dirname "$0")/.." || exit 1
 
-# Останавливаем старые контейнеры если они есть
-echo "Остановка старых контейнеров..."
-docker-compose down
+# Останавливаем и удаляем старые контейнеры с явным указанием project name
+echo "🛑 Остановка старых контейнеров..."
+docker-compose -f .docker/docker-compose.yaml -p valuator down --remove-orphans
 
-# Собираем и запускаем все сервисы
-echo "Сборка и запуск сервисов..."
-docker-compose up -d --build
+# Собираем и запускаем все сервисы с явным указанием project name
+echo "🔨 Сборка и запуск сервисов..."
+docker-compose -f .docker/docker-compose.yaml -p valuator up -d --build --remove-orphans --quiet-pull
 
-echo "Ожидание готовности сервисов..."
+echo "⏳ Ожидание готовности сервисов..."
 sleep 15
 
-echo "Проверка статуса сервисов..."
-docker-compose ps
+echo "📊 Проверка статуса сервисов..."
+docker-compose -f .docker/docker-compose.yaml -p valuator ps
 
 echo ""
-echo "Система запущена!"
-echo "Веб-приложение доступно по адресу: http://localhost:8080"
-echo "RabbitMQ Management UI доступен по адресу: http://localhost:15672 (guest/guest)"
+echo "✅ Система запущена!"
 echo ""
-echo "Для просмотра логов выполните:"
-echo "  Все сервисы:        docker-compose logs -f"
-echo "  EventsLogger:       docker-compose logs -f eventslogger-1 eventslogger-2"
-echo "  RankCalculator:     docker-compose logs -f rankcalculator-1 rankcalculator-2"
-echo "  Valuator:           docker-compose logs -f valuator-1 valuator-2"
+echo "🌐 Веб-приложение: http://localhost:8080"
+echo "🐰 RabbitMQ UI: http://localhost:15672 (guest/guest)"
 echo ""
-echo "Для остановки системы выполните: ./scripts/stop.sh"
+echo "📝 Просмотр логов:"
+echo "  docker-compose -f .docker/docker-compose.yaml -p valuator logs -f [service-name]"
+echo ""
+echo "🛑 Остановка: ./scripts/stop.sh"
+echo "🧹 Полная очистка: ./scripts/cleanup.sh"

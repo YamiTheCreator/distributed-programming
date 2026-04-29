@@ -1,0 +1,41 @@
+@page
+@model Application.Pages.IndexModel
+@{
+    ViewData["Title"] = "Главная";
+}
+
+<div class="text-center">
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+    
+    <form method="post">
+        <div class="mb-3">
+            <label for="countryCode" class="form-label">Страна гражданства:</label>
+            <select asp-for="CountryCode" class="form-select" required>
+                <option value="">-- Выберите страну --</option>
+                <option value="RU">Russia (RU)</option>
+                <option value="FR">France (EU)</option>
+                <option value="DE">Germany (EU)</option>
+                <option value="AE">UAE (ASIA)</option>
+                <option value="IN">India (ASIA)</option>
+            </select>
+            <span asp-validation-for="CountryCode" class="text-danger"></span>
+        </div>
+        
+        <div class="mb-3">
+            <label for="text" class="form-label">Текст для оценки:</label>
+            <textarea asp-for="Text" class="form-control" rows="5" placeholder="Введите текст для анализа..." required></textarea>
+            <span asp-validation-for="Text" class="text-danger"></span>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Анализировать</button>
+    </form>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

@@ -9,6 +9,30 @@ services:
     networks:
       - valuator-network
 
+  redis-ru:
+    image: redis:alpine
+    container_name: redis-ru
+    ports:
+      - "6380:6379"
+    networks:
+      - valuator-network
+
+  redis-eu:
+    image: redis:alpine
+    container_name: redis-eu
+    ports:
+      - "6381:6379"
+    networks:
+      - valuator-network
+
+  redis-asia:
+    image: redis:alpine
+    container_name: redis-asia
+    ports:
+      - "6382:6379"
+    networks:
+      - valuator-network
+
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: rabbitmq
@@ -20,23 +44,98 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     networks:
       - valuator-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
 
+  # API Gateway (YARP)
+  gateway:
+    build:
+      context: ..
+      dockerfile: .docker/Gateway.Dockerfile
+    container_name: api-gateway
+    environment:
+      - ASPNETCORE_URLS=http://0.0.0.0:8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      valuator-1:
+        condition: service_started
+      valuator-2:
+        condition: service_started
+      notificationservice-1:
+        condition: service_started
+      notificationservice-2:
+        condition: service_started
+    networks:
+      - valuator-network
+    restart: unless-stopped
+
+  # UI Service
+  application-1:
+    build:
+      context: ..
+      dockerfile: .docker/Application.Dockerfile
+    container_name: application-1
+    environment:
+      - ASPNETCORE_URLS=http://0.0.0.0:5010
+      - ApiGateway__Url=http://gateway:8080
+    ports:
+      - "5010:5010"
+    depends_on:
+      gateway:
+        condition: service_started
+    networks:
+      - valuator-network
+    restart: unless-stopped
+
+  application-2:
+    build:
+      context: ..
+      dockerfile: .docker/Application.Dockerfile
+    container_name: application-2
+    environment:
+      - ASPNETCORE_URLS=http://0.0.0.0:5011
+      - ApiGateway__Url=http://gateway:8080
+    ports:
+      - "5011:5011"
+    depends_on:
+      gateway:
+        condition: service_started
+    networks:
+      - valuator-network
+    restart: unless-stopped
+
+  # Valuator API Service
   valuator-1:
     build:
       context: ..
-      dockerfile: .docker/Dockerfile
-    container_name: valuator-app-1
+      dockerfile: .docker/Valuator.Dockerfile
+    container_name: valuator-1
     environment:
-      - ASPNETCORE_URLS=http://0.0.0.0:5001
+      - ASPNETCORE_URLS=http://0.0.0.0:5020
       - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RedisRU=redis-ru:6379
+      - ConnectionStrings__RedisEU=redis-eu:6379
+      - ConnectionStrings__RedisASIA=redis-asia:6379
       - ConnectionStrings__RabbitMQ=rabbitmq
       - RabbitMQ__Username=guest
       - RabbitMQ__Password=guest
     ports:
-      - "5001:5001"
+      - "5020:5020"
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      redis-ru:
+        condition: service_started
+      redis-eu:
+        condition: service_started
+      redis-asia:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - valuator-network
     restart: unless-stopped
@@ -44,19 +143,30 @@ services:
   valuator-2:
     build:
       context: ..
-      dockerfile: .docker/Dockerfile
-    container_name: valuator-app-2
+      dockerfile: .docker/Valuator.Dockerfile
+    container_name: valuator-2
     environment:
-      - ASPNETCORE_URLS=http://0.0.0.0:5002
+      - ASPNETCORE_URLS=http://0.0.0.0:5021
       - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RedisRU=redis-ru:6379
+      - ConnectionStrings__RedisEU=redis-eu:6379
+      - ConnectionStrings__RedisASIA=redis-asia:6379
       - ConnectionStrings__RabbitMQ=rabbitmq
       - RabbitMQ__Username=guest
       - RabbitMQ__Password=guest
     ports:
-      - "5002:5002"
+      - "5021:5021"
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      redis-ru:
+        condition: service_started
+      redis-eu:
+        condition: service_started
+      redis-asia:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - valuator-network
     restart: unless-stopped
@@ -68,12 +178,23 @@ services:
     container_name: rank-calculator-1
     environment:
       - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RedisRU=redis-ru:6379
+      - ConnectionStrings__RedisEU=redis-eu:6379
+      - ConnectionStrings__RedisASIA=redis-asia:6379
       - ConnectionStrings__RabbitMQ=rabbitmq
       - RabbitMQ__Username=guest
       - RabbitMQ__Password=guest
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      redis-ru:
+        condition: service_started
+      redis-eu:
+        condition: service_started
+      redis-asia:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - valuator-network
     restart: unless-stopped
@@ -85,12 +206,23 @@ services:
     container_name: rank-calculator-2
     environment:
       - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RedisRU=redis-ru:6379
+      - ConnectionStrings__RedisEU=redis-eu:6379
+      - ConnectionStrings__RedisASIA=redis-asia:6379
       - ConnectionStrings__RabbitMQ=rabbitmq
       - RabbitMQ__Username=guest
       - RabbitMQ__Password=guest
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_started
+      redis-ru:
+        condition: service_started
+      redis-eu:
+        condition: service_started
+      redis-asia:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - valuator-network
     restart: unless-stopped
@@ -105,7 +237,8 @@ services:
       - RabbitMQ__Username=guest
       - RabbitMQ__Password=guest
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     networks:
       - valuator-network
     restart: unless-stopped
@@ -120,24 +253,55 @@ services:
       - RabbitMQ__Username=guest
       - RabbitMQ__Password=guest
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     networks:
       - valuator-network
     restart: unless-stopped
 
-  nginx:
-    image: nginx:alpine
-    container_name: nginx
+  notificationservice-1:
+    build:
+      context: ..
+      dockerfile: .docker/NotificationService.Dockerfile
+    container_name: notification-service-1
+    environment:
+      - ASPNETCORE_URLS=http://0.0.0.0:5003
+      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RabbitMQ=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
     ports:
-      - "8080:8080"
-    volumes:
-      - ../nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro
+      - "5003:5003"
     depends_on:
-      - valuator-1
-      - valuator-2
-    restart: unless-stopped
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - valuator-network
+    restart: unless-stopped
+
+  notificationservice-2:
+    build:
+      context: ..
+      dockerfile: .docker/NotificationService.Dockerfile
+    container_name: notification-service-2
+    environment:
+      - ASPNETCORE_URLS=http://0.0.0.0:5004
+      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RabbitMQ=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+    ports:
+      - "5004:5004"
+    depends_on:
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - valuator-network
+    restart: unless-stopped
 
 networks:
   valuator-network:

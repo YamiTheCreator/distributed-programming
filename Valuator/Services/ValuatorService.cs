@@ -1,9 +1,9 @@
-using ValuatorLib.Contracts;
 using ValuatorLib.Interfaces;
+using ValuatorLib.Contracts;
 using MassTransit;
-using Valuator.DTO.Requests;
-using Valuator.DTO.Responses;
-using Valuator.Interfaces.Services;
+using ValuatorLib.Requests;
+using ValuatorLib.Responses;
+using ValuatorLib.Models;
 
 namespace Valuator.Services;
 
@@ -17,20 +17,32 @@ public class ValuatorService(
     {
         if (string.IsNullOrWhiteSpace(request.Text))
         {
-            return new ProcessTextResponse
-            {
-                Success = false,
-                ErrorMessage = "Текст не может быть пустым"
-            };
+            return ProcessTextResponse.Failed("Текст не может быть пустым");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CountryCode))
+        {
+            return ProcessTextResponse.Failed("Страна обязательна для выбора");
         }
 
         try
         {
-            logger.LogDebug("Обработка текста, длина: {Length}", request.Text.Length);
+            // Определяем страну и регион
+            Country? country = Countries.GetByCode(request.CountryCode);
+            if (country == null)
+            {
+                return ProcessTextResponse.Failed($"Неизвестный код страны: {request.CountryCode}");
+            }
 
-            string id = Guid.NewGuid().ToString();
+            ShardKey shardKey = ShardKey.FromCountry(country);
+            
+            logger.LogDebug("Обработка текста для страны {Country}, регион {Region}, длина: {Length}", 
+                country.Name, shardKey.Value, request.Text.Length);
 
-            await repository.SaveTextAsync(id, request.Text);
+            AnalysisId id = AnalysisId.New();
+
+            // Сохраняем текст в сегмент региона
+            await repository.SaveTextAsync(id, request.Text, shardKey);
 
             RankCalculationMessage taskMessage = new()
             {
@@ -38,15 +50,16 @@ public class ValuatorService(
             };
             await rankCalculationService.SendRankCalculationTaskAsync(taskMessage);
 
-            double similarity = await repository.TextExistsAsync(request.Text) ? 1.0 : 0.0;
+            // Проверяем схожесть в пределах региона
+            double similarity = await repository.TextExistsAsync(request.Text, shardKey) ? 1.0 : 0.0;
 
             if (similarity == 0.0)
             {
-                await repository.AddTextToSetAsync(request.Text);
+                await repository.AddTextToSetAsync(request.Text, shardKey);
             }
 
             await repository.SaveSimilarityAsync(id, similarity);
-            
+
             // публикация события
             await publishEndpoint.Publish(new SimilarityCalculatedEvent
             {
@@ -54,36 +67,20 @@ public class ValuatorService(
                 Similarity = similarity
             });
 
-            logger.LogInformation("Успешно обработан текст с ID: {Id}, задание отправлено в очередь", id);
+            logger.LogInformation("Успешно обработан текст с ID: {Id}, регион: {Region}, задание отправлено в очередь", 
+                id, shardKey.Value);
 
-            return new ProcessTextResponse
-            {
-                Id = id,
-                Success = true
-            };
+            return ProcessTextResponse.Successful(id);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Ошибка при обработке текста");
-            return new ProcessTextResponse
-            {
-                Success = false,
-                ErrorMessage = "Внутренняя ошибка сервера"
-            };
+            return ProcessTextResponse.Failed("Внутренняя ошибка сервера");
         }
     }
 
     public async Task<TextAnalysisResponse> GetAnalysisResultAsync(GetAnalysisRequest request)
     {
-        if (string.IsNullOrEmpty(request.Id))
-        {
-            return new TextAnalysisResponse
-            {
-                Success = false,
-                ErrorMessage = "ID не может быть пустым"
-            };
-        }
-
         try
         {
             logger.LogDebug("Запрос данных для ID: {Id}", request.Id);
@@ -94,29 +91,15 @@ public class ValuatorService(
             if (!similarity.HasValue)
             {
                 logger.LogWarning("Данные не найдены в Redis для ID: {Id}", request.Id);
-                return new TextAnalysisResponse
-                {
-                    Success = false,
-                    ErrorMessage = "Данные не найдены"
-                };
+                return TextAnalysisResponse.Failed("Данные не найдены");
             }
 
-            return new TextAnalysisResponse
-            {
-                Id = request.Id,
-                Rank = rank,
-                Similarity = similarity.Value,
-                Success = true
-            };
+            return TextAnalysisResponse.Successful(request.Id, rank, similarity.Value);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Критическая ошибка при загрузке данных для ID: {Id}", request.Id);
-            return new TextAnalysisResponse
-            {
-                Success = false,
-                ErrorMessage = "Внутренняя ошибка сервера"
-            };
+            return TextAnalysisResponse.Failed("Внутренняя ошибка сервера");
         }
     }
 }

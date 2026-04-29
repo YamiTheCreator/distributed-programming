@@ -1,6 +1,8 @@
+using ValuatorLib.Models;
+
 namespace ValuatorLib.Contracts;
 
 public record RankCalculationMessage
 {
-    public string Id { get; init; } = string.Empty;
+    public AnalysisId Id { get; init; }
 }

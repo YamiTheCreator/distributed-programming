@@ -1,23 +1,20 @@
 using Valuator.Extensions;
 
-WebApplicationBuilder builder = WebApplication.CreateBuilder( args );
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddValuator( builder.Configuration );
+builder.Services.AddControllers();
+builder.Services.AddValuatorApi(builder.Configuration);
 
 WebApplication app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if ( !app.Environment.IsDevelopment() )
+// Configure the HTTP request pipeline
+if (app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
+    app.MapOpenApi();
 }
 
-app.UseStaticFiles();
-
 app.UseRouting();
-
-app.UseAuthorization();
-
-app.MapRazorPages();
+app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();

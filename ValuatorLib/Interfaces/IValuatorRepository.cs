@@ -1,13 +1,16 @@
+using ValuatorLib.Models;
+
 namespace ValuatorLib.Interfaces;
 
 public interface IValuatorRepository
 {
-    Task<string?> GetTextAsync(string id);
-    Task SaveTextAsync(string id, string text);
-    Task<double?> GetRankAsync(string id);
-    Task SaveRankAsync(string id, double rank);
-    Task<double?> GetSimilarityAsync(string id);
-    Task SaveSimilarityAsync(string id, double similarity);
-    Task<bool> TextExistsAsync(string text);
-    Task AddTextToSetAsync(string text);
+    Task<string?> GetTextAsync(AnalysisId id);
+    Task SaveTextAsync(AnalysisId id, string text, ShardKey shardKey);
+    Task<double?> GetRankAsync(AnalysisId id);
+    Task SaveRankAsync(AnalysisId id, double rank);
+    Task<double?> GetSimilarityAsync(AnalysisId id);
+    Task SaveSimilarityAsync(AnalysisId id, double similarity);
+    Task<bool> TextExistsAsync(string text, ShardKey shardKey);
+    Task AddTextToSetAsync(string text, ShardKey shardKey);
+    Task<long> GetUniqueTextsCountAsync(ShardKey shardKey);
 }

@@ -1,7 +1,9 @@
+using ValuatorLib.Models;
+
 namespace ValuatorLib.Contracts;
 
 public record SimilarityCalculatedEvent
 {
-    public string Id { get; init; } = string.Empty;
+    public AnalysisId Id { get; init; }
     public double Similarity { get; init; }
 }
